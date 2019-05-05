@@ -1,0 +1,60 @@
+#!/bin/bash
+
+# First param is the backlight method to use: xrandr, xbacklight, kernel
+# Secon param is a percent brightnes. Larger than this, urgeny is turned on
+INSTANCE="${BLOCK_INSTANCE:-xbacklight;75}"
+
+METHOD=$(echo "${INSTANCE}" | awk -F ';' '{print $1}')
+TOO_BRIGHT=$(echo "${INSTANCE}" | awk -F ';' '{print $2}')
+
+
+# Left click
+if [[ "${BLOCK_BUTTON}" -eq 1 ]]; then
+  xbacklight -inc 5
+# Right click
+elif [[ "${BLOCK_BUTTON}" -eq 3 ]]; then
+  xbacklight -dec 5
+fi
+
+if [[ "${METHOD}" = "xrandr" ]]; then
+  device="${BLOCK_INSTANCE:-primary}"
+  xrandrOutput=$(xrandr --verbose)
+
+  if [[ "${device}" = "primary" ]]; then
+    device=$(echo "${xrandrOutput}" | grep 'primary' | head -n 1 | awk -F ' ' '{print $1}')
+  fi
+
+  curBrightness=$(echo "${xrandrOutput}" | grep "${device}" -A 5 | grep -i "Brightness" | awk -F ':' '{print $2}')
+elif [[ "${METHOD}" = "kernel" ]]; then
+  device="${BLOCK_INSTANCE:-intel_backlight}"
+  maxBrightness=$(cat /sys/class/backlight/${device}/max_brightness)
+  curBrightness=$(cat /sys/class/backlight/${device}/brightness)
+elif [[ "${METHOD}" = "xbacklight" ]]; then
+  curBrightness=$(xbacklight -get)
+fi
+
+if (( $(echo "${curBrightness} <= 0.0" | bc -l) )); then
+  exit
+fi
+
+if [[ "${METHOD}" = "xrandr" ]]; then
+  percent=$(echo "scale=0;${curBrightness} * 100" | bc -l)
+elif [[ "${METHOD}" = "kernel" ]]; then
+  percent=$(echo "scale=0;${curBrightness} / ${maxBrightness} * 100" | bc -l)
+elif [[ "${METHOD}" = "xbacklight" ]]; then
+  percent=$(echo "scale=0;${curBrightness}" | bc -l)
+fi
+
+percent=${percent%.*}
+
+if (( $(echo "${percent} < 0.0" | bc -l) ));  then
+  exit
+fi
+
+echo "$label ${percent}%"
+echo "$label ${percent}%"
+echo ""
+
+if [[ "${percent}" -ge "${TOO_BRIGHT}" ]]; then
+  exit 33
+fi

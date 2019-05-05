@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 #	kbdd_layout is a script that parse layout with kbdd in real time
 #	Copyright (C) 2016 Anton Karmanov <starcom24@gmail.com>
@@ -33,23 +33,9 @@ while [[ -z "$N" ]]; do
         /ru/gentoo/KbddService ru.gentoo.kbdd.getCurrentLayout 2>/dev/null |\
         sed -un 's/^.*uint32 //p' )
 done
-
-# English (US)
-# Greek
-# Don't like these long strings
-LONG=$( dbus-send --print-reply=literal --dest=ru.gentoo.KbddService \
+echo $( dbus-send --print-reply=literal --dest=ru.gentoo.KbddService \
 	/ru/gentoo/KbddService ru.gentoo.kbdd.getLayoutName uint32:$N )
-
-if [[ "$Ν ${LONG}" =~ .*English.* ]]; then
- echo "$label [US]"
-elif [[ " ${LONG}" =~ .*Greek.* ]]; then
-  echo "$label [GR]"
-else
-  echo "${LONG}"
-fi
 
 # Parse dbus output
 dbus-monitor "interface='ru.gentoo.kbdd',member='layoutNameChanged'" |\
-	sed -un '0~2p' | sed -un 's:.*string "\(.*\)".*:\1:p' |\
-    sed -u "s/Greek/${label} [GR]/g" | sed -u "s/English (US)/${label} [US]/g" |\
-    sed -u '/:/d'
+	sed -un '0~2p' | sed -un 's:.*string "\(.*\)".*:\1:p'  | sed -u '/:/d'
